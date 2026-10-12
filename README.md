@@ -4,6 +4,7 @@
 
 ## Архітектурна схема
 gymhelper-cloud-bot/
+
 ├── .env.example       
 ├── .gitignore        
 ├── README.md          
