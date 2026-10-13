@@ -1,0 +1,26 @@
+{
+  "name": "prac",
+  "version": "1.0.0",
+  "description": "**GymHelper Cloud Bot** — це простий хмарний сервіс для додатку трекінгу здоров'я. Він моніторить поточну погоду і автоматично надсилає користувачу в Telegram рекомендації щодо водного балансу у спекотні дні, а також нагадування про прийоми їжі.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/11072834-sudo/prac.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/11072834-sudo/prac/issues"
+  },
+  "homepage": "https://github.com/11072834-sudo/prac#readme",
+  "dependencies": {
+    "axios": "^1.20.0",
+    "dotenv": "^18.0.7",
+    "express": "^5.3.0"
+  }
+}
