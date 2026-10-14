@@ -1,63 +1,84 @@
-require('dotenv').config(); 
-const express = require('express');
-const axios = require('axios'); 
+require('dotenv').config();
+const { Telegraf, Markup } = require('telegraf'); 
+const axios = require('axios');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const token = process.env.TELEGRAM_BOT_TOKEN;
+const myChatId = process.env.TELEGRAM_CHAT_ID;
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const bot = new Telegraf(token);
 
 const LAT = 48.5132;
 const LON = 32.2597;
 
-app.get('/send-report', async (req, res) => {
+bot.start((ctx) => {
+    const welcomeText = "gymhelper_bot моніторить умови для тренувань та нагадує про харчування.";
+
+    ctx.reply(welcomeText, Markup.keyboard([
+        ['Погода зараз', 'Мій звіт'],
+        ['Допомога']
+    ]).resize());
+});
+
+bot.help((ctx) => {
+    ctx.reply("Команди:\n/start - Головне меню\n/help - Допомога\n\nБот автоматично аналізує погоду і надсилає звіти кожні 5 хвилин.");
+});
+
+bot.hears('Погода зараз', (ctx) => {
+    processAndNotify(ctx.chat.id);
+});
+
+bot.hears('Мій звіт', (ctx) => {
+    ctx.reply("Ваша ціль: 2000 ккал. Залишилось: 500 ккал. Не забудьте внести дані в GymHelper!");
+});
+
+bot.hears('Допомога', (ctx) => {
+    ctx.reply("Команди:\n/start - Головне меню\n/help - Допомога\n\nБот автоматично аналізує погоду і надсилає звіти кожні 5 хвилин.");
+});
+
+async function processAndNotify(chatId) {
     try {
-        console.log("збір даних...");
-
-        const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current_weather=true`;
-        const weatherResponse = await axios.get(weatherUrl);
-
-        if (weatherResponse.status !== 200) {
-            throw new Error(`Помилка API погоди: статус ${weatherResponse.status}`);
-        }
-
-        const temperature = weatherResponse.data.current_weather.temperature;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current_weather=true`;
+        const response = await axios.get(url);
         
-        let message = `Звіт по погоді від GymHelper.\n`;
-        message += `Поточна температура у Кропивницькому: ${temperature}°C.\n`;
+        const temp = response.data.current_weather.temperature;
+        const weatherCode = response.data.current_weather.weathercode; 
         
-        if (temperature > 25) {
-            message += `На вулиці спекотно, не забудь випити більше води під час тренування`;
+        let message = `Температура у Кропивницькому: ${temp}°C.\n\n`;
+
+        if (temp > 25) {
+            message += `На вулиці спекотно, намагайтесь пити побільше водиці\n`;
+        } else if (temp < 10) {
+            message += `На вулиці прохолодно вдягніться тепліше \n`;
+        } else {
+            message += `Ідеальна температура для прогулянки \n`;
         }
 
-        const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-        const telegramResponse = await axios.post(telegramUrl, {
-            chat_id: TELEGRAM_CHAT_ID,
-            text: message
-        });
-
-        if (telegramResponse.status !== 200) {
-            throw new Error(`Помилка Telegram API: статус ${telegramResponse.status}`);
+        if (weatherCode >= 50) {
+            message += `Очікуються опади`;
+        } else {
+            message += `Опадів не передбачається`;
         }
 
-        console.log("Успіх, повідомлення відправлено в Telegram!");
-        res.status(200).json({ 
-            success: true, 
-            message: "Звіт успішно відправлено", 
-            weather: `${temperature}°C` 
-        });
-
+        bot.telegram.sendMessage(chatId, message);
+        console.log(`Звіт надіслано, температура -> ${temp}°C, weatherCode -> ${weatherCode}`);
+        
     } catch (error) {
-        console.error("Сталася помилка під час виконання: ", error.message);
-        res.status(500).json({ 
-            success: false, 
-            error: "Не вдалося виконати інтеграцію. Деталі в консолі сервера" 
-        });
+        console.error("API error -> ", error.message);
     }
-});
+}
 
-app.listen(PORT, () => {
-    console.log(`GymHelper запущено на порту ${PORT}`);
-    console.log(`Перейдіть за посиланням http://localhost:${PORT}/send-report щоб протестувати.`);
-});
+bot.launch();
+console.log("gymhelper_bot успішно запущено");
+
+setInterval(() => {
+    console.log("Спрацював таймер автоматичної перевірки");
+    if (myChatId) {
+        processAndNotify(myChatId); 
+    } else {
+        console.log("chat ID не знайдено у файлі .env");
+    }
+}, 5 * 60 * 1000);
+
+
+process.once('SIGINT', () => bot.stop('SIGINT'));
+process.once('SIGTERM', () => bot.stop('SIGTERM'));
